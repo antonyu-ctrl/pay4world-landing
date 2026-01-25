@@ -1,0 +1,76 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": [
+<<<<<<< HEAD
+      "DOM",
+      "DOM.Iterable",
+      "ES2022"
+=======
+      "dom",
+      "dom.iterable",
+      "esnext"
+>>>>>>> 8b7061e4 (Initial rebuild landing: sticky hero + canvas network)
+    ],
+    "allowJs": false,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+<<<<<<< HEAD
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "types": [
+      "node"
+    ],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./*"
+      ]
+    },
+    "esModuleInterop": true,
+    "isolatedModules": true,
+=======
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+>>>>>>> 8b7061e4 (Initial rebuild landing: sticky hero + canvas network)
+    "plugins": [
+      {
+        "name": "next"
+      }
+<<<<<<< HEAD
+    ]
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "next-env.d.ts",
+    ".next/types/**/*.ts"
+=======
+    ],
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
+>>>>>>> 8b7061e4 (Initial rebuild landing: sticky hero + canvas network)
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}
