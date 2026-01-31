@@ -14,7 +14,7 @@ export default function Section({
   children?: React.ReactNode;
 }) {
   return (
-    <section id={id} className="border-t border-slate-100">
+    <section id={id} className="scroll-mt-[84px] border-t border-slate-100">
       <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
         <div className="grid gap-10 lg:grid-cols-12">
           <div className="lg:col-span-5">

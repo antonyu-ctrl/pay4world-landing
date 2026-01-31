@@ -10,6 +10,12 @@ function clamp(n: number, a: number, b: number) {
 
 export default function Hero() {
   const [progress, setProgress] = useState(0);
+  const [mounted, setMounted] = useState(false);
+
+  // ✅ SSR/CSR mismatch 방지: 첫 렌더를 서버와 동일하게 맞춘 뒤, 마운트 후 동적 계산 적용
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const onScroll = () => {
@@ -22,11 +28,14 @@ export default function Hero() {
   }, []);
 
   const heroHeight = useMemo(() => {
-    const vh = typeof window !== "undefined" ? window.innerHeight : 900;
+    // ✅ 서버 렌더 + 첫 클라 렌더에서 동일한 값 사용
+    if (!mounted) return "92vh";
+
+    const vh = window.innerHeight;
     const max = Math.min(vh * 0.92, 880);
     const min = 140;
     return max - (max - min) * progress;
-  }, [progress]);
+  }, [progress, mounted]);
 
   return (
     <section className="relative" style={{ height: heroHeight }}>
@@ -49,15 +58,15 @@ export default function Hero() {
 
               <Reveal delay={0.05}>
                 <h1 className="mt-5 text-4xl font-black tracking-tight text-brand-ink sm:text-5xl leading-[1.15]">
-  		  <span className="block">한 사람의 기부가,</span>
-  		  <span className="block mt-2 text-brand-mint">세상을 연결합니다</span>
-		</h1>
+                  <span className="block">한 사람의 기부가,</span>
+                  <span className="block mt-2 text-brand-mint">세상을 연결합니다</span>
+                </h1>
               </Reveal>
 
               <Reveal delay={0.1}>
                 <p className="mt-5 text-base leading-7 text-brand-slate">
-                  한 번의 시작이 주변으로 번지고, 연결될수록 더 큰 임팩트가 만들어져요.
-                  Pay4World는 기부가 ‘혼자’가 아니라 ‘네트워크’가 되도록 설계됐습니다.
+                  한 번의 시작이 주변으로 번지고, 연결될수록 더 큰 임팩트가 만들어져요. Pay4World는 기부가 ‘혼자’가 아니라
+                  ‘네트워크’가 되도록 설계됐습니다.
                 </p>
               </Reveal>
 
@@ -94,7 +103,7 @@ export default function Hero() {
                   </div>
                 </dl>
               </Reveal>
-            </div>            
+            </div>
           </div>
         </div>
       </div>
