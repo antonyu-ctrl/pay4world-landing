@@ -3,7 +3,7 @@ import { SCENE_SECTIONS } from "@/lib/sceneSections";
 
 export default function SectionsRail() {
   return (
-    <>
+    <div className="pt-8 md:pt-10">
       {SCENE_SECTIONS.map((s, i) => (
         <SceneSection
           key={s.id}
@@ -17,6 +17,6 @@ export default function SectionsRail() {
           mediaSrc={s.mediaSrc}
         />
       ))}
-    </>
+    </div>
   );
 }

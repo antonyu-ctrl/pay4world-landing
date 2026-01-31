@@ -22,7 +22,7 @@ export default function SceneSection({
   desc,
   details,
   align,
-  mediaSrc, // ✅ 추가
+  mediaSrc,
 }: {
   id: string;
   index: number;
@@ -31,14 +31,30 @@ export default function SceneSection({
   desc: string;
   details?: string[];
   align: "left" | "right";
-  mediaSrc?: string; // ✅ 추가
+  mediaSrc?: string;
 }) {
   const wrapRef = useRef<HTMLElement | null>(null);
+
+  // ✅ 모바일에서는 sticky를 끄기 위한 분기
+  const [isDesktop, setIsDesktop] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia("(min-width: 768px)");
+    const onChange = () => setIsDesktop(mql.matches);
+    onChange();
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
+
+  // 진행률은 데스크탑에서만 실사용(모바일은 그냥 0으로 둬도 OK)
   const [p, setP] = useState(0);
 
   useEffect(() => {
-    let raf = 0;
+    if (!isDesktop) {
+      setP(0);
+      return;
+    }
 
+    let raf = 0;
     const tick = () => {
       const el = wrapRef.current;
       if (!el) return;
@@ -46,9 +62,9 @@ export default function SceneSection({
       const rect = el.getBoundingClientRect();
       const vh = window.innerHeight || 800;
 
-      // wrapperMinVh=90 기준 템포(빨리 전환)
-      const start = vh * 0.80;
-      const end = -vh * 0.10;
+      // 데스크탑 기준 템포
+      const start = vh * 0.8;
+      const end = -vh * 0.1;
       const raw = (start - rect.top) / (start - end);
 
       setP(clamp(raw, 0, 1));
@@ -57,7 +73,7 @@ export default function SceneSection({
 
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, []);
+  }, [isDesktop]);
 
   const t = useMemo(() => easeOutCubic(p), [p]);
   const heightVh = useMemo(() => lerp(C.frame.minVh, C.frame.maxVh, t), [t]);
@@ -70,6 +86,11 @@ export default function SceneSection({
   const textCol = `${C.layout.textCol} ${isRight ? "lg:order-2" : ""}`;
   const mediaCol = `${C.layout.mediaCol} ${isRight ? "lg:order-1" : ""}`;
 
+  // ✅ 모바일에서는 “일반 섹션 높이”로 동작하도록
+  const sectionMinHeight = isDesktop ? `${C.frame.wrapperMinVh}vh` : "auto";
+  const stickyHeight = isDesktop ? `${C.frame.maxVh}vh` : "auto";
+  const frameMinHeight = isDesktop ? `${heightVh}vh` : "auto";
+
   return (
     <section
       ref={(n) => {
@@ -77,37 +98,41 @@ export default function SceneSection({
       }}
       id={id}
       className={`relative border-t ${preset.borderTopClass}`}
-      style={{ minHeight: `${C.frame.wrapperMinVh}vh`, background: bgColor }}
+      style={{ minHeight: sectionMinHeight, background: bgColor }}
     >
-      {/* 공기감 overlay */}
+      {/* 배경 오버레이(겹침 방지 위해 z-index 관리) */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0"
+        className="pointer-events-none absolute inset-0 -z-10"
         style={{ backgroundImage: preset.overlay }}
       />
 
-      {/* TECH preset 점 패턴 */}
       {preset.pattern?.enabled ? (
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0"
+          className="pointer-events-none absolute inset-0 -z-10"
           style={preset.pattern.style}
         />
       ) : null}
 
+      {/* ✅ 모바일에서는 sticky OFF (겹침 해결) */}
       <div
-        className="sticky"
+        className={isDesktop ? "sticky" : "relative"}
         style={{
-          top: C.frame.stickyTopPx,
-          height: `${C.frame.maxVh}vh`,
+          top: isDesktop ? C.frame.stickyTopPx : undefined,
+          height: stickyHeight,
           display: "flex",
           alignItems: "center",
         }}
       >
         <div className={C.layout.container} style={{ width: "100%" }}>
-          <div className={C.layout.grid} style={{ minHeight: `${heightVh}vh` }}>
+          <div
+            className={C.layout.grid}
+            style={{
+              minHeight: frameMinHeight,
+            }}
+          >
             <div className={textCol}>
-              {/* BRAND preset accent bar */}
               {preset.accentBar?.enabled ? (
                 <div className="mb-4">
                   <div
@@ -135,11 +160,8 @@ export default function SceneSection({
               </div>
             </div>
 
-            <div
-              className={mediaCol}
-              style={{ transform: `scale(${lerp(0.96, 1.02, t)})` }}
-            >
-              {/* ✅ 여기만 바뀜: src를 넘기면 이미지, 없으면 기존 placeholder */}
+            {/* ✅ 모바일에서 이미지가 밑으로 내려가게 mt 추가 */}
+            <div className={`${mediaCol} mt-6 lg:mt-0`}>
               <SceneMedia
                 presetName={C.bg.activePreset}
                 src={mediaSrc}

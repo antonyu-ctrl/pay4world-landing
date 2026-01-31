@@ -32,7 +32,10 @@ export const SCENE_CONTROLS = {
         overlay:
           "radial-gradient(80% 60% at 20% 20%, rgba(72,186,175,0.14) 0%, rgba(255,255,255,0) 60%)",
         borderTopClass: "border-slate-100",
-        textPanelClass: "rounded-3xl bg-white/0 border border-white/0 shadow-none p-2 sm:p-0",
+        textPanelClass:
+  	  "rounded-3xl p-5 md:p-0 " +
+  	  "bg-white/88 backdrop-blur-sm border border-white/70 shadow-sm " + // ✅ 모바일 가독성
+  	  "md:bg-white/0 md:border-white/0 md:shadow-none md:backdrop-blur-0",
         mediaCardBgClass: "bg-white",
         accentBar: { enabled: false, className: "bg-[#48baaf]", widthPx: 3 },
         pattern: { enabled: false as const },
@@ -44,7 +47,10 @@ export const SCENE_CONTROLS = {
         overlay:
           "radial-gradient(90% 70% at 10% 10%, rgba(72,186,175,0.16) 0%, rgba(255,255,255,0) 55%)",
         borderTopClass: "border-brand-line/60",
-        textPanelClass: "rounded-3xl bg-white/0 border border-white/0 shadow-none p-2 sm:p-0",
+        textPanelClass:
+  	  "rounded-3xl p-5 md:p-0 " +
+  	  "bg-white/88 backdrop-blur-sm border border-white/70 shadow-sm " + // ✅ 모바일 가독성
+  	  "md:bg-white/0 md:border-white/0 md:shadow-none md:backdrop-blur-0",
         mediaCardBgClass: "bg-[#F3FFFD]",
         accentBar: { enabled: false, className: "bg-[#48baaf]", widthPx: 3 },
         pattern: {
@@ -65,7 +71,10 @@ export const SCENE_CONTROLS = {
         overlay:
           "radial-gradient(75% 65% at 30% 15%, rgba(72,186,175,0.22) 0%, rgba(255,255,255,0) 58%)",
         borderTopClass: "border-brand-line/70",
-        textPanelClass: "rounded-3xl bg-white/0 border border-white/0 shadow-none p-2 sm:p-0",
+        textPanelClass:
+  	  "rounded-3xl p-5 md:p-0 " +
+  	  "bg-white/88 backdrop-blur-sm border border-white/70 shadow-sm " + // ✅ 모바일 가독성
+  	  "md:bg-white/0 md:border-white/0 md:shadow-none md:backdrop-blur-0",
         mediaCardBgClass: "bg-[#EFFFFB]",
         accentBar: { enabled: true, className: "bg-[#48baaf]", widthPx: 3 },
         pattern: { enabled: false as const },
