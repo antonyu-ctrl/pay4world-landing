@@ -1,7 +1,9 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SCENE_CONTROLS as C } from "@/lib/sceneControls";
+import { UI } from "@/lib/uiControls";
 import SceneMedia from "@/components/SceneMedia";
 
 function clamp(n: number, a = 0, b = 1) {
@@ -14,6 +16,26 @@ function easeOutCubic(t: number) {
   return 1 - Math.pow(1 - t, 3);
 }
 
+function ctaClass() {
+  const base =
+    "mt-7 inline-flex items-center justify-center gap-2 rounded-full text-sm font-semibold transition";
+  const size =
+    UI.cta.size === "sm"
+      ? "h-9 px-4"
+      : UI.cta.size === "lg"
+        ? "h-11 px-6"
+        : "h-10 px-5";
+
+  const variant =
+    UI.cta.variant === "brand"
+      ? "bg-brand-ink text-white hover:bg-brand-ink/90"
+      : UI.cta.variant === "ghost"
+        ? "bg-transparent text-brand-ink hover:bg-slate-100"
+        : "border border-slate-200 bg-white text-brand-ink hover:bg-slate-50";
+
+  return `${base} ${size} ${variant}`;
+}
+
 export default function SceneSection({
   id,
   index,
@@ -23,6 +45,8 @@ export default function SceneSection({
   details,
   align,
   mediaSrc,
+  detailsId,
+  ctaLabel,
 }: {
   id: string;
   index: number;
@@ -32,7 +56,12 @@ export default function SceneSection({
   details?: string[];
   align: "left" | "right";
   mediaSrc?: string;
+
+  // ✅ 상세 라우트 연결용
+  detailsId?: string;
+  ctaLabel?: string;
 }) {
+  const router = useRouter();
   const wrapRef = useRef<HTMLElement | null>(null);
 
   // ✅ 모바일에서는 sticky를 끄기 위한 분기
@@ -45,7 +74,7 @@ export default function SceneSection({
     return () => mql.removeEventListener("change", onChange);
   }, []);
 
-  // 진행률은 데스크탑에서만 실사용(모바일은 그냥 0으로 둬도 OK)
+  // 진행률은 데스크탑에서만 실사용
   const [p, setP] = useState(0);
 
   useEffect(() => {
@@ -91,6 +120,16 @@ export default function SceneSection({
   const stickyHeight = isDesktop ? `${C.frame.maxVh}vh` : "auto";
   const frameMinHeight = isDesktop ? `${heightVh}vh` : "auto";
 
+  const onCtaClick = () => {
+    if (!detailsId) return;
+
+    const href = isDesktop
+      ? `/details/${detailsId}` // ✅ 데스크탑: 인터셉트 모달
+      : `/m/details/${detailsId}`; // ✅ 모바일: 풀페이지
+
+    router.push(href);
+  };
+
   return (
     <section
       ref={(n) => {
@@ -100,7 +139,7 @@ export default function SceneSection({
       className={`relative border-t ${preset.borderTopClass}`}
       style={{ minHeight: sectionMinHeight, background: bgColor }}
     >
-      {/* 배경 오버레이(겹침 방지 위해 z-index 관리) */}
+      {/* 배경 오버레이 */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 -z-10"
@@ -115,7 +154,7 @@ export default function SceneSection({
         />
       ) : null}
 
-      {/* ✅ 모바일에서는 sticky OFF (겹침 해결) */}
+      {/* ✅ 모바일에서는 sticky OFF */}
       <div
         className={isDesktop ? "sticky" : "relative"}
         style={{
@@ -126,12 +165,7 @@ export default function SceneSection({
         }}
       >
         <div className={C.layout.container} style={{ width: "100%" }}>
-          <div
-            className={C.layout.grid}
-            style={{
-              minHeight: frameMinHeight,
-            }}
-          >
+          <div className={C.layout.grid} style={{ minHeight: frameMinHeight }}>
             <div className={textCol}>
               {preset.accentBar?.enabled ? (
                 <div className="mb-4">
@@ -157,10 +191,17 @@ export default function SceneSection({
                     ))}
                   </ul>
                 ) : null}
+
+                {/* ✅ CTA 버튼: 데스크탑/모바일 분기 라우팅 */}
+                {UI.cta.enabled && detailsId ? (
+                  <button type="button" className={ctaClass()} onClick={onCtaClick}>
+                    {ctaLabel ?? UI.cta.defaultLabel}
+                    {UI.cta.showArrow ? <span aria-hidden>→</span> : null}
+                  </button>
+                ) : null}
               </div>
             </div>
 
-            {/* ✅ 모바일에서 이미지가 밑으로 내려가게 mt 추가 */}
             <div className={`${mediaCol} mt-6 lg:mt-0`}>
               <SceneMedia
                 presetName={C.bg.activePreset}

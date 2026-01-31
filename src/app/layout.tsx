@@ -9,15 +9,24 @@ export const metadata: Metadata = {
     title: "Pay4World",
     description:
       "한 사람의 시작 → 주변 확산 → 거미줄 연결. 기부가 네트워크가 되도록 설계된 Pay4World.",
-    type: "website"
+    type: "website",
   },
-  metadataBase: new URL("https://example.com")
+  metadataBase: new URL("https://example.com"),
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+  modal,
+}: {
+  children: React.ReactNode;
+  modal: React.ReactNode;
+}) {
   return (
     <html lang="ko">
-      <body>{children}</body>
+      <body>
+        {children}
+        {modal}
+      </body>
     </html>
   );
 }

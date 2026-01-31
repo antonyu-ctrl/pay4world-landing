@@ -15,6 +15,8 @@ export default function SectionsRail() {
           details={s.details}
           align={s.align}
           mediaSrc={s.mediaSrc}
+          detailsId={s.detailsId}   // ✅ 추가
+          ctaLabel={s.ctaLabel}     // ✅ 추가(없으면 SceneSection에서 기본 라벨 사용)
         />
       ))}
     </div>
