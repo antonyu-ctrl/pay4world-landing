@@ -8,7 +8,7 @@ export const BRAND = {
 } as const;
 
 export const ASSETS = {
-  logo: "/assets/logo.png",
+  logo: "/assets/logo-transparent.png",
   heroFallback: "/assets/hero-ref.jpg"
 } as const;
 
