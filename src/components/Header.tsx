@@ -57,7 +57,7 @@ export default function Header() {
           aria-label="Pay4World 홈"
           onClick={handleLogoClick}
         >
-          <Image src={ASSETS.logo} alt="Pay4World" width={170} height={44} priority />
+          <Image src={ASSETS.logo} alt="Pay4World" width={136} height={35} priority />
         </Link>
 
         <nav className="hidden items-center gap-5 text-sm font-semibold text-brand-slate md:flex">
