@@ -1,52 +1,48 @@
 "use client";
 
 import Hero from "@/components/Hero";
-import Problem from "@/components/Problem";
-import Solution from "@/components/Solution";
-import Product from "@/components/Product";
-import Transparency from "@/components/Transparency";
-import Partners from "@/components/Partners";
-import Impact from "@/components/Impact";
-import Roadmap from "@/components/Roadmap";
+import SceneSection from "@/components/SceneSection";
 import ContactScene from "@/components/ContactScene";
 import Footer from "@/components/Footer";
-import type { ContentConfig } from "@/lib/siteConfig";
+import { SCENE_LAYOUT, SCENE_SECTION_ORDER } from "@/lib/sceneSections";
+import type { ContentConfig, SceneSectionContent } from "@/lib/siteConfig";
 
 type Props = {
   sectionKey: keyof ContentConfig;
   config: ContentConfig;
 };
 
+const SCENE_KEYS = new Set<string>(SCENE_SECTION_ORDER);
+
 export default function SectionPreview({ sectionKey, config }: Props) {
-  // Wrap in a scaled container to approximate page appearance
   return (
-    <div className="origin-top-left" style={{ transform: "scale(0.85)", transformOrigin: "top left", width: "117.6%" }}>
+    <div
+      className="origin-top-left"
+      style={{ transform: "scale(0.85)", transformOrigin: "top left", width: "117.6%" }}
+    >
       {sectionKey === "hero" && (
-        <div className="relative h-[500px] overflow-hidden">
-          <Hero contentOverride={config.hero} />
-        </div>
+        <Hero contentOverride={config.hero} previewMode />
       )}
-      {sectionKey === "problem" && (
-        <Problem contentOverride={config.problem} />
-      )}
-      {sectionKey === "solution" && (
-        <Solution contentOverride={config.solution} />
-      )}
-      {sectionKey === "product" && (
-        <Product contentOverride={config.product} />
-      )}
-      {sectionKey === "transparency" && (
-        <Transparency contentOverride={config.transparency} />
-      )}
-      {sectionKey === "partners" && (
-        <Partners contentOverride={config.partners} />
-      )}
-      {sectionKey === "impact" && (
-        <Impact contentOverride={config.impact} />
-      )}
-      {sectionKey === "roadmap" && (
-        <Roadmap contentOverride={config.roadmap} />
-      )}
+
+      {SCENE_KEYS.has(sectionKey) && (() => {
+        const layout = SCENE_LAYOUT[sectionKey as keyof typeof SCENE_LAYOUT];
+        const section = config[sectionKey] as SceneSectionContent;
+        if (!layout || !section) return null;
+        return (
+          <SceneSection
+            id={layout.sectionId}
+            index={0}
+            eyebrow={section.eyebrow}
+            title={section.title}
+            desc={section.description}
+            details={section.details}
+            align={layout.align}
+            mediaSrc={layout.mediaSrc}
+            detailsId={layout.detailsId}
+          />
+        );
+      })()}
+
       {sectionKey === "contact" && (
         <ContactScene contentOverride={config.contact} />
       )}

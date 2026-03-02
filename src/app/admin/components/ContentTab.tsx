@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import type { ContentConfig } from "@/lib/siteConfig";
+import type { ContentConfig, SceneSectionContent } from "@/lib/siteConfig";
+import { SCENE_SECTION_ORDER } from "@/lib/sceneSections";
 import SectionPreview from "./SectionPreview";
 
 type Props = {
@@ -127,144 +128,40 @@ function HeroEditor({
   );
 }
 
-function CardSectionEditor({
+const SCENE_KEYS = new Set<string>(SCENE_SECTION_ORDER);
+
+function SceneSectionEditor({
   sectionKey,
-  cardKey,
   config,
   onChange,
 }: {
-  sectionKey: "problem" | "product" | "partners";
-  cardKey: "cards" | "features";
+  sectionKey: string;
   config: ContentConfig;
   onChange: (c: ContentConfig) => void;
 }) {
-  const sec = config[sectionKey] as Record<string, unknown>;
-  const cards = (sec[cardKey] as { title: string; description: string }[]) ?? [];
+  const sec = config[sectionKey as keyof ContentConfig] as SceneSectionContent;
+
+  const set = (key: keyof SceneSectionContent, value: string | string[]) =>
+    onChange({ ...config, [sectionKey]: { ...sec, [key]: value } });
 
   return (
     <div className="space-y-3">
-      <TextInput label="Eyebrow" value={sec.eyebrow as string} onChange={(v) => onChange({ ...config, [sectionKey]: { ...sec, eyebrow: v } })} />
-      <TextInput label="Title" value={sec.title as string} onChange={(v) => onChange({ ...config, [sectionKey]: { ...sec, title: v } })} />
-      <TextArea label="Description" value={sec.description as string} onChange={(v) => onChange({ ...config, [sectionKey]: { ...sec, description: v } })} />
+      <TextInput label="Eyebrow" value={sec.eyebrow} onChange={(v) => set("eyebrow", v)} />
+      <TextInput label="Title" value={sec.title} onChange={(v) => set("title", v)} />
+      <TextArea label="Description" value={sec.description} onChange={(v) => set("description", v)} />
       <div className="border-t border-slate-100 pt-3">
-        <p className="mb-2 text-xs font-semibold text-brand-slate">Cards</p>
-        {cards.map((c, i) => (
-          <div key={i} className="mb-3 rounded-lg border border-slate-100 p-3">
-            <TextInput
-              label={`Card ${i + 1} Title`}
-              value={c.title}
-              onChange={(v) => {
-                const arr = [...cards];
-                arr[i] = { ...arr[i], title: v };
-                onChange({ ...config, [sectionKey]: { ...sec, [cardKey]: arr } });
-              }}
-            />
-            <div className="mt-2">
-              <TextInput
-                label={`Card ${i + 1} Description`}
-                value={c.description}
-                onChange={(v) => {
-                  const arr = [...cards];
-                  arr[i] = { ...arr[i], description: v };
-                  onChange({ ...config, [sectionKey]: { ...sec, [cardKey]: arr } });
-                }}
-              />
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ListSectionEditor({
-  sectionKey,
-  listKey,
-  config,
-  onChange,
-}: {
-  sectionKey: "solution" | "transparency";
-  listKey: "steps" | "bullets";
-  config: ContentConfig;
-  onChange: (c: ContentConfig) => void;
-}) {
-  const sec = config[sectionKey] as Record<string, unknown>;
-  const items = (sec[listKey] as string[]) ?? [];
-
-  return (
-    <div className="space-y-3">
-      <TextInput label="Eyebrow" value={sec.eyebrow as string} onChange={(v) => onChange({ ...config, [sectionKey]: { ...sec, eyebrow: v } })} />
-      <TextInput label="Title" value={sec.title as string} onChange={(v) => onChange({ ...config, [sectionKey]: { ...sec, title: v } })} />
-      <TextArea label="Description" value={sec.description as string} onChange={(v) => onChange({ ...config, [sectionKey]: { ...sec, description: v } })} />
-      <div className="border-t border-slate-100 pt-3">
-        <p className="mb-2 text-xs font-semibold text-brand-slate">Items</p>
-        {items.map((item, i) => (
+        <p className="mb-2 text-xs font-semibold text-brand-slate">Bullet Points</p>
+        {sec.details.map((item, i) => (
           <div key={i} className="mb-2">
             <TextInput
               label={`Item ${i + 1}`}
               value={item}
               onChange={(v) => {
-                const arr = [...items];
+                const arr = [...sec.details];
                 arr[i] = v;
-                onChange({ ...config, [sectionKey]: { ...sec, [listKey]: arr } });
+                set("details", arr);
               }}
             />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ImpactEditor({
-  config,
-  onChange,
-}: {
-  config: ContentConfig;
-  onChange: (c: ContentConfig) => void;
-}) {
-  const sec = config.impact;
-  return (
-    <div className="space-y-3">
-      <TextInput label="Eyebrow" value={sec.eyebrow} onChange={(v) => onChange({ ...config, impact: { ...sec, eyebrow: v } })} />
-      <TextInput label="Title" value={sec.title} onChange={(v) => onChange({ ...config, impact: { ...sec, title: v } })} />
-      <TextArea label="Description" value={sec.description} onChange={(v) => onChange({ ...config, impact: { ...sec, description: v } })} />
-      <div className="border-t border-slate-100 pt-3">
-        <p className="mb-2 text-xs font-semibold text-brand-slate">Metrics</p>
-        {sec.metrics.map((m, i) => (
-          <div key={i} className="mb-3 rounded-lg border border-slate-100 p-3">
-            <TextInput label={`Metric ${i + 1} Title`} value={m.title} onChange={(v) => { const arr = [...sec.metrics]; arr[i] = { ...arr[i], title: v }; onChange({ ...config, impact: { ...sec, metrics: arr } }); }} />
-            <div className="mt-2">
-              <TextInput label={`Metric ${i + 1} Description`} value={m.description} onChange={(v) => { const arr = [...sec.metrics]; arr[i] = { ...arr[i], description: v }; onChange({ ...config, impact: { ...sec, metrics: arr } }); }} />
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function RoadmapEditor({
-  config,
-  onChange,
-}: {
-  config: ContentConfig;
-  onChange: (c: ContentConfig) => void;
-}) {
-  const sec = config.roadmap;
-  return (
-    <div className="space-y-3">
-      <TextInput label="Eyebrow" value={sec.eyebrow} onChange={(v) => onChange({ ...config, roadmap: { ...sec, eyebrow: v } })} />
-      <TextInput label="Title" value={sec.title} onChange={(v) => onChange({ ...config, roadmap: { ...sec, title: v } })} />
-      <TextArea label="Description" value={sec.description} onChange={(v) => onChange({ ...config, roadmap: { ...sec, description: v } })} />
-      <div className="border-t border-slate-100 pt-3">
-        <p className="mb-2 text-xs font-semibold text-brand-slate">Phases</p>
-        {sec.phases.map((p, i) => (
-          <div key={i} className="mb-3 rounded-lg border border-slate-100 p-3">
-            <TextInput label={`Phase ${i + 1} Label`} value={p.label} onChange={(v) => { const arr = [...sec.phases]; arr[i] = { ...arr[i], label: v }; onChange({ ...config, roadmap: { ...sec, phases: arr } }); }} />
-            <div className="mt-2">
-              <TextInput label={`Phase ${i + 1} Description`} value={p.description} onChange={(v) => { const arr = [...sec.phases]; arr[i] = { ...arr[i], description: v }; onChange({ ...config, roadmap: { ...sec, phases: arr } }); }} />
-            </div>
           </div>
         ))}
       </div>
@@ -328,28 +225,19 @@ export default function ContentTab({ config, onChange }: Props) {
   const [mobileView, setMobileView] = useState<MobileView>("editor");
 
   const renderEditor = useCallback(() => {
-    switch (activeSection) {
-      case "hero":
-        return <HeroEditor config={config} onChange={onChange} />;
-      case "problem":
-        return <CardSectionEditor sectionKey="problem" cardKey="cards" config={config} onChange={onChange} />;
-      case "solution":
-        return <ListSectionEditor sectionKey="solution" listKey="steps" config={config} onChange={onChange} />;
-      case "product":
-        return <CardSectionEditor sectionKey="product" cardKey="features" config={config} onChange={onChange} />;
-      case "transparency":
-        return <ListSectionEditor sectionKey="transparency" listKey="bullets" config={config} onChange={onChange} />;
-      case "partners":
-        return <CardSectionEditor sectionKey="partners" cardKey="cards" config={config} onChange={onChange} />;
-      case "impact":
-        return <ImpactEditor config={config} onChange={onChange} />;
-      case "roadmap":
-        return <RoadmapEditor config={config} onChange={onChange} />;
-      case "contact":
-        return <ContactEditor config={config} onChange={onChange} />;
-      case "footer":
-        return <FooterEditor config={config} onChange={onChange} />;
+    if (activeSection === "hero") {
+      return <HeroEditor config={config} onChange={onChange} />;
     }
+    if (SCENE_KEYS.has(activeSection)) {
+      return <SceneSectionEditor sectionKey={activeSection} config={config} onChange={onChange} />;
+    }
+    if (activeSection === "contact") {
+      return <ContactEditor config={config} onChange={onChange} />;
+    }
+    if (activeSection === "footer") {
+      return <FooterEditor config={config} onChange={onChange} />;
+    }
+    return null;
   }, [activeSection, config, onChange]);
 
   return (

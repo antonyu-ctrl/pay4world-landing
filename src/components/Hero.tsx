@@ -13,9 +13,11 @@ function clamp(n: number, a: number, b: number) {
 export default function Hero({
   contentOverride,
   animationOverride,
+  previewMode = false,
 }: {
   contentOverride?: HeroContent;
   animationOverride?: AnimationConfig;
+  previewMode?: boolean;
 } = {}) {
   const configContent = useContent();
   const configAnimation = useResponsiveAnimationConfig();
@@ -31,6 +33,7 @@ export default function Hero({
   }, []);
 
   useEffect(() => {
+    if (previewMode) return;
     const onScroll = () => {
       const p = clamp(window.scrollY / 260, 0, 1);
       setProgress(p);
@@ -38,19 +41,20 @@ export default function Hero({
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [previewMode]);
 
   const heroHeight = useMemo(() => {
+    if (previewMode) return "auto";
     if (!mounted) return "80vh";
     const vh = window.innerHeight;
     const max = Math.min(vh * 0.80, 880);
     const min = 140;
     return max - (max - min) * progress;
-  }, [progress, mounted]);
+  }, [progress, mounted, previewMode]);
 
   return (
     <section className="relative" style={{ height: heroHeight }}>
-      <div className="sticky top-[52px] h-full overflow-hidden border-b border-brand-line/50 bg-white">
+      <div className={`${previewMode ? "relative" : "sticky top-[52px]"} h-full overflow-hidden border-b border-brand-line/50 bg-white`}>
         <div className="absolute inset-0 pointer-events-none">
           <HeroNetworkCanvas
             stickyProgress={progress}

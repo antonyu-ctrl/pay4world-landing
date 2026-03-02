@@ -85,7 +85,6 @@ export type AnimationConfig = {
 
 // ─── Content Config ─────────────────────────────────────────────────
 
-export type CardItem = { title: string; description: string };
 export type StatItem = { label: string; value: string };
 
 export type HeroContent = {
@@ -98,19 +97,13 @@ export type HeroContent = {
   stats: StatItem[];
 };
 
-export type SectionContent = {
+/** Unified type for all 7 scene sections (problem → roadmap) */
+export type SceneSectionContent = {
   eyebrow: string;
   title: string;
   description: string;
+  details: string[];
 };
-
-export type ProblemContent = SectionContent & { cards: CardItem[] };
-export type SolutionContent = SectionContent & { steps: string[] };
-export type ProductContent = SectionContent & { features: CardItem[] };
-export type TransparencyContent = SectionContent & { bullets: string[] };
-export type PartnersContent = SectionContent & { cards: CardItem[] };
-export type ImpactContent = SectionContent & { metrics: CardItem[] };
-export type RoadmapContent = SectionContent & { phases: { label: string; description: string }[] };
 
 export type ContactContent = {
   eyebrow: string;
@@ -133,13 +126,13 @@ export type FooterContent = {
 
 export type ContentConfig = {
   hero: HeroContent;
-  problem: ProblemContent;
-  solution: SolutionContent;
-  product: ProductContent;
-  transparency: TransparencyContent;
-  partners: PartnersContent;
-  impact: ImpactContent;
-  roadmap: RoadmapContent;
+  problem: SceneSectionContent;
+  solution: SceneSectionContent;
+  product: SceneSectionContent;
+  transparency: SceneSectionContent;
+  partners: SceneSectionContent;
+  impact: SceneSectionContent;
+  roadmap: SceneSectionContent;
   contact: ContactContent;
   footer: FooterContent;
 };
@@ -254,84 +247,50 @@ export const DEFAULT_CONTENT: ContentConfig = {
   },
   problem: {
     eyebrow: "Problem",
-    title: "기부가 '한 번'에서 멈추는 이유",
-    description:
-      "좋은 마음은 있어도, 기부는 습관이 되기 어렵습니다. Pay4World는 '참여 → 연결 → 반복'이 자연스럽게 이어지도록 UX를 설계합니다.",
-    cards: [
-      { title: "단발성", description: "일회성 캠페인 중심이라 관계/지속이 약해요." },
-      { title: "동기 부족", description: "성과를 체감하기 어렵고 재미가 부족해요." },
-      { title: "확산 한계", description: "공유는 되지만 실제 참여 전환이 낮아요." },
-      { title: "신뢰", description: "투명성과 스토리 연결이 끊기기 쉬워요." },
+    title: "Why donations stop at 'once'",
+    description: "Pay4World는 한 번으로 끝나지 않게 만드는 참여 UX를 설계합니다.",
+    details: [
+      "일회성으로 끝나기 쉬움",
+      "동기 유지가 어려움",
+      "주변 확산이 제한적",
+      "투명성/신뢰 이슈",
     ],
   },
   solution: {
     eyebrow: "Solution",
-    title: "한 사람의 시작 → 주변 확산 → 거미줄 연결",
-    description:
-      "Hero에서 보이는 그대로, Pay4World는 '시작 노드'가 '다음 노드'를 부르는 구조를 만듭니다. 참여가 관계가 되고, 관계가 지속을 만듭니다.",
-    steps: [
-      "내 위치 기반으로 '근처'에서 시작",
-      "참여가 공유되고, 주변이 반응",
-      "연결이 쌓이며 네트워크가 성장",
-      "배지/미션으로 반복 참여가 자연스러움",
-    ],
+    title: "Start → Spread → Connect",
+    description: "한 사람의 시작이 주변으로 번지고, 연결이 임팩트를 키우는 구조.",
+    details: ["시작 노드 점등", "참여의 확산", "거미줄처럼 연결"],
   },
   product: {
     eyebrow: "Product",
-    title: "참여를 '게임처럼' 이어주는 기능",
-    description:
-      "과한 장식 대신, 행동을 바꾸는 장치만 남깁니다. 작은 참여가 계속되도록 설계된 핵심 기능을 제공합니다.",
-    features: [
-      { title: "배지/스트릭", description: "작은 성취를 시각화해 지속성을 만듭니다." },
-      { title: "미션/챌린지", description: "참여 진입장벽을 낮추고 행동을 유도합니다." },
-      { title: "피드/확산", description: "내 시작이 주변 참여로 이어지도록 설계합니다." },
-      { title: "개인화", description: "내 관심/위치 기반으로 다음 행동을 제안합니다." },
-    ],
+    title: "Participation-first product design",
+    description: "참여를 쉽게, 계속하도록 만드는 인터랙션/피드백을 제공합니다.",
+    details: ["진입장벽 최소화", "반복 참여 유도", "확산 트리거 내장"],
   },
   transparency: {
-    eyebrow: "Trust",
-    title: "투명성은 기본, '스토리 연결'이 핵심",
-    description:
-      "기부는 숫자만으로 유지되지 않습니다. 결과가 연결되고 공유되어 다음 참여로 이어지는 흐름을 만듭니다.",
-    bullets: [
-      "기부 Journey: 시작부터 결과까지 한 흐름으로",
-      "인증/리포트: 신뢰할 수 있는 근거 제공",
-      "임팩트 요약: 내가 만든 변화가 한눈에 보이게",
-    ],
+    eyebrow: "Transparency",
+    title: "Trust by design",
+    description: "기부가 '보이도록' 설계해 신뢰를 강화합니다.",
+    details: ["활동 가시화", "검증 가능한 흐름", "커뮤니티 기반 신뢰"],
   },
   partners: {
-    eyebrow: "B2B · NPO",
-    title: "기업/기관과 함께 더 크게 확산",
-    description:
-      "캠페인, CSR, 지역 연계까지. Pay4World의 네트워크 구조는 파트너와 연결될수록 확장됩니다.",
-    cards: [
-      { title: "기업 CSR", description: "참여율을 높이는 게임화 캠페인" },
-      { title: "NPO", description: "스토리·결과가 연결되는 후원 경험" },
-      { title: "지역", description: "위치 기반으로 가까운 곳에서 시작" },
-      { title: "SaaS", description: "운영 도구/대시보드로 확장" },
-    ],
+    eyebrow: "Partners",
+    title: "Partners grow the network",
+    description: "기관/브랜드/커뮤니티와 함께 성장합니다.",
+    details: ["파트너 연동", "캠페인 공동 설계", "현장 시범 운영"],
   },
   impact: {
     eyebrow: "Impact",
-    title: "연결될수록 커지는 임팩트",
-    description:
-      "SROI 같은 정량 지표뿐 아니라, '첫 기부자'와 '반복 기부'가 늘어나는 구조를 만듭니다.",
-    metrics: [
-      { title: "첫 기부자", description: "처음 참여가 쉽게" },
-      { title: "기부 빈도", description: "반복 참여가 자연스럽게" },
-      { title: "확산", description: "연결이 다음 참여를 유도" },
-    ],
+    title: "Compounding impact",
+    description: "연결이 쌓일수록 임팩트는 더 커집니다.",
+    details: ["참여의 복리", "네트워크 효과", "지역 기반 확장"],
   },
   roadmap: {
     eyebrow: "Roadmap",
-    title: "작게 시작해서, 기능과 파트너를 확장",
-    description:
-      "MVP → 지역/캠페인 확장 → 파트너 도구(SaaS)까지 단계적으로 성장합니다.",
-    phases: [
-      { label: "Phase 1", description: "시작 노드·확산 UX 고도화" },
-      { label: "Phase 2", description: "캠페인/챌린지 + 파트너 협업" },
-      { label: "Phase 3", description: "대시보드·리포트·SaaS 패키지" },
-    ],
+    title: "From pilot to scale",
+    description: "시범 운영 → 확장 가능한 제품화로 나아갑니다.",
+    details: ["파일럿", "데이터 기반 개선", "확장/파트너십"],
   },
   contact: {
     eyebrow: "Contact",
@@ -387,24 +346,67 @@ export const DEFAULT_CONFIG: SiteConfig = {
   content: DEFAULT_CONTENT,
 };
 
-// ─── Migration helper ────────────────────────────────────────────────
+// ─── Migration helpers ───────────────────────────────────────────────
 
-/** Detect and migrate legacy flat animation config to dual format */
-export function migrateConfig(raw: Record<string, unknown>): Record<string, unknown> {
-  if (raw.animation && typeof raw.animation === "object") {
-    const anim = raw.animation as Record<string, unknown>;
-    // Legacy detection: if "animation" has "colors" directly, it's the old flat format
-    if ("colors" in anim && !("desktop" in anim)) {
-      return {
-        ...raw,
-        animation: {
-          desktop: anim,
-          mobile: anim,
-        },
-      };
+/** Convert legacy section formats (cards/steps/features/etc.) to unified details[] */
+function migrateSection(sec: Record<string, unknown>): Record<string, unknown> {
+  if (sec.details) return sec; // Already migrated
+
+  // cards / features / metrics → extract title strings
+  for (const key of ["cards", "features", "metrics"]) {
+    if (Array.isArray(sec[key])) {
+      const items = sec[key] as { title?: string; description?: string }[];
+      const details = items.map((c) => c.title ?? c.description ?? "");
+      const { [key]: _, ...rest } = sec;
+      return { ...rest, details };
     }
   }
-  return raw;
+
+  // steps / bullets → rename to details
+  for (const key of ["steps", "bullets"]) {
+    if (Array.isArray(sec[key])) {
+      const { [key]: items, ...rest } = sec;
+      return { ...rest, details: items };
+    }
+  }
+
+  // phases → extract description strings
+  if (Array.isArray(sec.phases)) {
+    const phases = sec.phases as { label?: string; description?: string }[];
+    const details = phases.map((p) => p.description ?? p.label ?? "");
+    const { phases: _, ...rest } = sec;
+    return { ...rest, details };
+  }
+
+  return sec;
+}
+
+const SCENE_KEYS = ["problem", "solution", "product", "transparency", "partners", "impact", "roadmap"];
+
+/** Detect and migrate legacy config formats */
+export function migrateConfig(raw: Record<string, unknown>): Record<string, unknown> {
+  let result = { ...raw };
+
+  // Migrate flat animation → dual format
+  if (result.animation && typeof result.animation === "object") {
+    const anim = result.animation as Record<string, unknown>;
+    if ("colors" in anim && !("desktop" in anim)) {
+      result = { ...result, animation: { desktop: anim, mobile: anim } };
+    }
+  }
+
+  // Migrate content sections → unified details[] format
+  if (result.content && typeof result.content === "object") {
+    const content = { ...(result.content as Record<string, unknown>) };
+    for (const key of SCENE_KEYS) {
+      if (content[key] && typeof content[key] === "object") {
+        content[key] = migrateSection(content[key] as Record<string, unknown>);
+      }
+    }
+    result = { ...result, content };
+  }
+
+  return result;
 }
 
 // ─── Runtime config loader ──────────────────────────────────────────
