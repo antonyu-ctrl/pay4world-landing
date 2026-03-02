@@ -9,11 +9,14 @@ const CONFIG_PATH = join(process.cwd(), "data", "site-config.json");
 
 function getRedis(): Redis | null {
   try {
-    if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
-      return new Redis({
-        url: process.env.UPSTASH_REDIS_REST_URL,
-        token: process.env.UPSTASH_REDIS_REST_TOKEN,
-      });
+    const url =
+      process.env.UPSTASH_REDIS_REST_URL ??
+      process.env.UPSTASH_REDIS_REST_KV_REST_API_URL;
+    const token =
+      process.env.UPSTASH_REDIS_REST_TOKEN ??
+      process.env.UPSTASH_REDIS_REST_KV_REST_API_TOKEN;
+    if (url && token) {
+      return new Redis({ url, token });
     }
   } catch {}
   return null;
