@@ -9,5 +9,8 @@ out
 .env
 .env.local
 
+# local data (config + password files for dev)
+data/
+
 # misc
 .DS_Store

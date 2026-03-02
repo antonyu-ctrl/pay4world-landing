@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { ConfigProvider } from "@/lib/ConfigContext";
 
 export const metadata: Metadata = {
   title: "Pay4World — 한 사람의 기부가, 세상을 연결합니다",
@@ -24,8 +25,10 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body>
-        {children}
-        {modal}
+        <ConfigProvider>
+          {children}
+          {modal}
+        </ConfigProvider>
       </body>
     </html>
   );

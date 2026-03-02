@@ -1,5 +1,7 @@
 "use client";
 
+import { useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { ASSETS, NAV } from "@/lib/constants";
@@ -13,7 +15,6 @@ function scrollToId(id: string) {
 }
 
 function scrollToTop() {
-  // 해시가 있으면 URL을 깔끔하게 '/'로 정리 (원치 않으면 이 블록 삭제 가능)
   if (window.location.pathname !== "/" || window.location.hash) {
     history.replaceState(null, "", "/");
   }
@@ -22,6 +23,31 @@ function scrollToTop() {
 }
 
 export default function Header() {
+  const router = useRouter();
+  const clickCountRef = useRef(0);
+  const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleLogoClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      clickCountRef.current += 1;
+
+      if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
+
+      if (clickCountRef.current >= 3) {
+        clickCountRef.current = 0;
+        router.push("/admin");
+        return;
+      }
+
+      clickTimerRef.current = setTimeout(() => {
+        clickCountRef.current = 0;
+        scrollToTop();
+      }, 400);
+    },
+    [router]
+  );
+
   return (
     <header className="sticky top-0 z-50 border-b border-brand-line/60 bg-white/80 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
@@ -29,11 +55,7 @@ export default function Header() {
           href="/"
           className="flex items-center gap-3"
           aria-label="Pay4World 홈"
-          onClick={(e) => {
-            // Link 기본 네비게이션(리로드/라우팅) 대신 항상 top으로 스크롤
-            e.preventDefault();
-            scrollToTop();
-          }}
+          onClick={handleLogoClick}
         >
           <Image src={ASSETS.logo} alt="Pay4World" width={170} height={44} priority />
         </Link>

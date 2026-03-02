@@ -1,18 +1,22 @@
-import Section from "@/components/Section";
+"use client";
 
-export default function Roadmap() {
+import Section from "@/components/Section";
+import { useContent } from "@/lib/ConfigContext";
+import type { RoadmapContent } from "@/lib/siteConfig";
+
+export default function Roadmap({ contentOverride }: { contentOverride?: RoadmapContent }) {
+  const config = useContent();
+  const c = contentOverride ?? config.roadmap;
+
   return (
-    <Section
-      id="roadmap"
-      eyebrow="Roadmap"
-      title="작게 시작해서, 기능과 파트너를 확장"
-      desc="MVP → 지역/캠페인 확장 → 파트너 도구(SaaS)까지 단계적으로 성장합니다."
-    >
+    <Section id="roadmap" eyebrow={c.eyebrow} title={c.title} desc={c.description}>
       <div className="rounded-3xl border border-slate-200 bg-white p-6">
         <ol className="space-y-3 text-sm text-brand-slate">
-          <li><span className="font-semibold text-brand-ink">Phase 1</span> 시작 노드·확산 UX 고도화</li>
-          <li><span className="font-semibold text-brand-ink">Phase 2</span> 캠페인/챌린지 + 파트너 협업</li>
-          <li><span className="font-semibold text-brand-ink">Phase 3</span> 대시보드·리포트·SaaS 패키지</li>
+          {c.phases.map((p, i) => (
+            <li key={i}>
+              <span className="font-semibold text-brand-ink">{p.label}</span> {p.description}
+            </li>
+          ))}
         </ol>
       </div>
     </Section>

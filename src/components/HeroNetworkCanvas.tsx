@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { HERO_NET_THEME as T } from "@/lib/heroNetwork.theme";
+import {
+  DEFAULT_ANIMATION,
+  type AnimationConfig,
+} from "@/lib/siteConfig";
 
-type Mode = "intro" | "propagate" | "weave" | "secondary" | "ambient";
+// ─── Utility helpers (allocation-free) ──────────────────────────────
 
 function clamp(n: number, a: number, b: number) {
   return Math.max(a, Math.min(b, n));
@@ -20,10 +23,11 @@ function easeOutCubic(t: number) {
 function hexToRgb(hex: string) {
   const h = hex.replace("#", "");
   const bigint = parseInt(h, 16);
-  const r = (bigint >> 16) & 255;
-  const g = (bigint >> 8) & 255;
-  const b = bigint & 255;
-  return { r, g, b };
+  return {
+    r: (bigint >> 16) & 255,
+    g: (bigint >> 8) & 255,
+    b: bigint & 255,
+  };
 }
 
 function rgba(hex: string, a: number) {
@@ -31,15 +35,35 @@ function rgba(hex: string, a: number) {
   return `rgba(${r},${g},${b},${a})`;
 }
 
+function depthScale(z: number, perspectiveDist: number): number {
+  return perspectiveDist / (perspectiveDist + z);
+}
+
+function depthOpacity(
+  z: number,
+  zMax: number,
+  opacityMin: number,
+  opacityMax: number
+): number {
+  const t = z / zMax;
+  return opacityMax - t * (opacityMax - opacityMin);
+}
+
+// ─── Types ──────────────────────────────────────────────────────────
+
+type Mode = "intro" | "propagate" | "weave" | "secondary" | "ambient";
+
 type Node = {
   id: number;
   x: number;
   y: number;
+  z: number;
   r: number;
-  lit: number; // 0..1
+  lit: number;
   bornAt: number;
   pulseAt: number;
   appear: number;
+  driftPhase: number;
 };
 
 type Edge = {
@@ -48,7 +72,17 @@ type Edge = {
   bornAt: number;
 };
 
-export default function HeroNetworkCanvas({ stickyProgress = 0 }: { stickyProgress?: number }) {
+// ─── Component ──────────────────────────────────────────────────────
+
+export default function HeroNetworkCanvas({
+  stickyProgress = 0,
+  animationConfig,
+}: {
+  stickyProgress?: number;
+  animationConfig?: AnimationConfig;
+}) {
+  const T = animationConfig ?? DEFAULT_ANIMATION;
+
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rafRef = useRef<number | null>(null);
   const startRef = useRef<number>(0);
@@ -56,11 +90,24 @@ export default function HeroNetworkCanvas({ stickyProgress = 0 }: { stickyProgre
 
   const nodesRef = useRef<Node[]>([]);
   const edgesRef = useRef<Edge[]>([]);
+  const sortOrderRef = useRef<number[]>([]);
 
-  const seed = useMemo(() => ({ x: T.seed.x, y: T.seed.y }), []);
+  // Mouse tracking
+  const mouseRef = useRef({ x: 0.5, y: 0.5 });
+  const smoothMouseRef = useRef({ x: 0.5, y: 0.5 });
+
+  // Pre-allocated projection arrays
+  const projXRef = useRef<Float32Array>(new Float32Array(0));
+  const projYRef = useRef<Float32Array>(new Float32Array(0));
+
+  const seed = useMemo(() => ({ x: T.seed.x, y: T.seed.y }), [T.seed.x, T.seed.y]);
   const [dpr, setDpr] = useState(1);
 
-  useEffect(() => setDpr(Math.min(T.perf.dprMax, window.devicePixelRatio || 1)), []);
+  useEffect(() => setDpr(Math.min(2, window.devicePixelRatio || 1)), []);
+
+  // Config version ref to detect changes
+  const configRef = useRef(T);
+  configRef.current = T;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -68,8 +115,13 @@ export default function HeroNetworkCanvas({ stickyProgress = 0 }: { stickyProgre
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    const cfg = configRef.current;
+    const prefersReduced =
+      window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    const isTouchDevice =
+      "ontouchstart" in window || navigator.maxTouchPoints > 0;
 
+    // ── Resize ────────────────────────────────────────────────
     const resize = () => {
       const parent = canvas.parentElement;
       if (!parent) return;
@@ -86,28 +138,52 @@ export default function HeroNetworkCanvas({ stickyProgress = 0 }: { stickyProgre
     const ro = new ResizeObserver(resize);
     ro.observe(canvas.parentElement!);
 
+    // ── Mouse tracking ────────────────────────────────────────
+    const onMouseMove = (e: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      mouseRef.current.x = (e.clientX - rect.left) / rect.width;
+      mouseRef.current.y = (e.clientY - rect.top) / rect.height;
+    };
+
+    const onMouseLeave = () => {
+      mouseRef.current.x = 0.5;
+      mouseRef.current.y = 0.5;
+    };
+
+    if (!prefersReduced && !isTouchDevice) {
+      canvas.addEventListener("mousemove", onMouseMove);
+      canvas.addEventListener("mouseleave", onMouseLeave);
+    }
+
+    // ── Init ──────────────────────────────────────────────────
     const init = () => {
+      const c = configRef.current;
       nodesRef.current = [];
       edgesRef.current = [];
       startRef.current = performance.now();
       modeRef.current = "intro";
 
-      const total = prefersReduced ? T.nodes.reducedTotal : T.nodes.total;
-      const baseCount = prefersReduced ? T.nodes.reducedBaseCount : T.nodes.baseCount;
+      const total = prefersReduced ? c.nodes.reducedTotal : c.nodes.total;
+      const baseCount = prefersReduced
+        ? c.nodes.reducedBaseCount
+        : c.nodes.baseCount;
 
       const parent = canvas.parentElement!;
       const W = parent.clientWidth;
       const H = parent.clientHeight;
 
+      // Seed node — near front
       nodesRef.current.push({
         id: 0,
         x: seed.x * W,
         y: seed.y * H,
-        r: T.nodes.seedR,
+        z: 0.15,
+        r: c.nodes.seedR,
         lit: 1,
         bornAt: 0,
         pulseAt: 0,
         appear: 1,
+        driftPhase: 0,
       });
 
       const sample = () => {
@@ -120,21 +196,47 @@ export default function HeroNetworkCanvas({ stickyProgress = 0 }: { stickyProgre
 
       for (let i = 1; i < total; i++) {
         const p = sample();
+
+        // z biased by distance from seed: nearby → closer, far → deeper
+        const dx = (p.x / W - seed.x);
+        const dy = (p.y / H - seed.y);
+        const distNorm = Math.min(
+          1,
+          Math.sqrt(dx * dx + dy * dy) / 0.5
+        );
+        const z = Math.random() * (0.3 + 0.7 * distNorm);
+
         nodesRef.current.push({
           id: i,
           x: p.x,
           y: p.y,
-          r: T.nodes.rMin + Math.random() * T.nodes.rJitter,
+          z,
+          r: c.nodes.rMin + Math.random() * c.nodes.rJitter,
           lit: 0,
-          bornAt: i < baseCount ? T.nodes.bornEarlyAt : T.nodes.bornLateBaseAt + Math.random() * T.nodes.bornLateJitter,
+          bornAt:
+            i < baseCount
+              ? c.nodes.bornEarlyAt
+              : c.nodes.bornLateBaseAt +
+                Math.random() * c.nodes.bornLateJitter,
           pulseAt: -99999,
           appear: 0,
+          driftPhase: Math.random() * Math.PI * 2,
         });
       }
+
+      // Sort order: back-to-front (highest z first)
+      sortOrderRef.current = nodesRef.current
+        .map((_, i) => i)
+        .sort((a, b) => nodesRef.current[b].z - nodesRef.current[a].z);
+
+      // Pre-allocate projection arrays
+      projXRef.current = new Float32Array(total);
+      projYRef.current = new Float32Array(total);
     };
 
     init();
 
+    // ── Edge helpers ──────────────────────────────────────────
     const kNearest = (idx: number, k: number) => {
       const n = nodesRef.current[idx];
       const arr: { j: number; d: number }[] = [];
@@ -148,14 +250,19 @@ export default function HeroNetworkCanvas({ stickyProgress = 0 }: { stickyProgre
       return arr.slice(0, k);
     };
 
-    const edgeKey = (a: number, b: number) => `${Math.min(a, b)}-${Math.max(a, b)}`;
+    const edgeKey = (a: number, b: number) =>
+      `${Math.min(a, b)}-${Math.max(a, b)}`;
     const edgeSet = new Set<string>();
 
     const addEdge = (a: number, b: number, t: number) => {
       const key = edgeKey(a, b);
       if (edgeSet.has(key)) return;
       edgeSet.add(key);
-      edgesRef.current.push({ a: Math.min(a, b), b: Math.max(a, b), bornAt: t });
+      edgesRef.current.push({
+        a: Math.min(a, b),
+        b: Math.max(a, b),
+        bornAt: t,
+      });
     };
 
     const pulseNode = (i: number, t: number) => {
@@ -165,26 +272,34 @@ export default function HeroNetworkCanvas({ stickyProgress = 0 }: { stickyProgre
       n.lit = 1;
     };
 
+    // ── Propagation order ─────────────────────────────────────
     const litOrder: number[] = (() => {
       const seedNode = nodesRef.current[0];
       return nodesRef.current
-        .slice(1, T.litOrder.sampleFromFirstN)
-        .map((n) => ({ id: n.id, d: Math.hypot(n.x - seedNode.x, n.y - seedNode.y) }))
+        .slice(1, 36)
+        .map((n) => ({
+          id: n.id,
+          d: Math.hypot(n.x - seedNode.x, n.y - seedNode.y),
+        }))
         .sort((a, b) => a.d - b.d)
-        .slice(0, T.litOrder.takeClosest)
+        .slice(0, 10)
         .map((x) => x.id);
     })();
 
+    // ── Timeline ──────────────────────────────────────────────
     const timeline = (t: number) => {
+      const c = configRef.current;
       if (prefersReduced) return (modeRef.current = "ambient");
-      if (t < T.timeline.introEnd) modeRef.current = "intro";
-      else if (t < T.timeline.propagateEnd) modeRef.current = "propagate";
-      else if (t < T.timeline.weaveEnd) modeRef.current = "weave";
-      else if (t < T.timeline.secondaryEnd) modeRef.current = "secondary";
+      if (t < c.timeline.introEnd) modeRef.current = "intro";
+      else if (t < c.timeline.propagateEnd) modeRef.current = "propagate";
+      else if (t < c.timeline.weaveEnd) modeRef.current = "weave";
+      else if (t < c.timeline.secondaryEnd) modeRef.current = "secondary";
       else modeRef.current = "ambient";
     };
 
+    // ── Draw loop ─────────────────────────────────────────────
     const draw = (now: number) => {
+      const c = configRef.current;
       const elapsed = now - startRef.current;
       timeline(elapsed);
 
@@ -192,137 +307,249 @@ export default function HeroNetworkCanvas({ stickyProgress = 0 }: { stickyProgre
       const W = parent.clientWidth;
       const H = parent.clientHeight;
 
-      // background
+      // Smooth mouse
+      const effectiveParallax = prefersReduced || isTouchDevice ? 0 : c.parallax.strength;
+      smoothMouseRef.current.x = lerp(
+        smoothMouseRef.current.x,
+        mouseRef.current.x,
+        c.parallax.lerpSpeed
+      );
+      smoothMouseRef.current.y = lerp(
+        smoothMouseRef.current.y,
+        mouseRef.current.y,
+        c.parallax.lerpSpeed
+      );
+      const mouseOffsetX = (smoothMouseRef.current.x - 0.5) * 2;
+      const mouseOffsetY = (smoothMouseRef.current.y - 0.5) * 2;
+
+      // ── Background ──────────────────────────────────────
       ctx.clearRect(0, 0, W, H);
       const grad = ctx.createLinearGradient(0, 0, 0, H);
-      grad.addColorStop(0, T.bg.top);
-      grad.addColorStop(1, T.bg.bottom);
+      grad.addColorStop(0, c.colors.bgTop);
+      grad.addColorStop(1, c.colors.bgBottom);
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, W, H);
 
-      const stickyFade = lerp(1, T.sticky.fadeTo, clamp(stickyProgress, 0, 1));
+      const stickyFade = lerp(1, 0.92, clamp(stickyProgress, 0, 1));
 
-      // appear / decay
+      // ── Appear / decay / pulse triggers ─────────────────
       for (const n of nodesRef.current) {
-        const appear = clamp((elapsed - n.bornAt) / T.nodes.appearDurationMs, 0, 1);
+        const appear = clamp(
+          (elapsed - n.bornAt) / c.nodes.appearDurationMs,
+          0,
+          1
+        );
         n.appear = easeOutCubic(appear);
+
         if (modeRef.current === "ambient") {
-          n.lit = Math.max(0, n.lit - T.ambient.litDecayPerFrame);
-          if (Math.random() < T.ambient.randomPulseChance) {
-            pulseNode(1 + Math.floor(Math.random() * T.ambient.randomPulsePickFrom), elapsed);
+          n.lit = Math.max(0, n.lit - c.ambient.litDecayPerFrame);
+          if (Math.random() < c.ambient.randomPulseChance) {
+            pulseNode(
+              1 + Math.floor(Math.random() * c.ambient.randomPulsePickFrom),
+              elapsed
+            );
           }
         }
       }
 
       if (modeRef.current === "propagate") {
-        const base = T.timeline.propagateBase;
-        const step = T.timeline.propagateStep;
+        const base = c.timeline.propagateBase;
+        const step = c.timeline.propagateStep;
         for (let i = 0; i < litOrder.length; i++) {
           const at = base + i * step;
-          if (elapsed > at && elapsed < at + T.timeline.propagateWindow) pulseNode(litOrder[i], elapsed);
+          if (elapsed > at && elapsed < at + c.timeline.propagateWindow)
+            pulseNode(litOrder[i], elapsed);
         }
       }
 
-      if (modeRef.current === "weave" || modeRef.current === "secondary" || modeRef.current === "ambient") {
-        const maxLen = Math.min(W, H) * T.weave.maxLenMul;
+      // ── Edge generation ──────────────────────────────────
+      if (
+        modeRef.current === "weave" ||
+        modeRef.current === "secondary" ||
+        modeRef.current === "ambient"
+      ) {
+        const maxLen = Math.min(W, H) * c.weave.maxLenMul;
         const litIdx: number[] = [];
         for (let i = 0; i < nodesRef.current.length; i++) {
           const n = nodesRef.current[i];
-          if (n.appear < T.nodes.appearMinForEdgeA) continue;
+          if (n.appear < 0.2) continue;
           if (i === 0 || n.lit > 0.15) litIdx.push(i);
         }
 
         for (const i of litIdx) {
-          const k = i === 0 ? T.weave.seedK : T.weave.nodeK;
+          const k = i === 0 ? c.weave.seedK : c.weave.nodeK;
           const near = kNearest(i, k);
           for (const { j, d } of near) {
             if (d > maxLen) continue;
-            if (nodesRef.current[j].appear < T.nodes.appearMinForEdgeB) continue;
+            if (nodesRef.current[j].appear < 0.15) continue;
             addEdge(i, j, elapsed);
           }
-          // subtle triangulation for "weave"
-          if (Math.random() < T.weave.triangulateChance) {
-            const n2 = kNearest(i, T.weave.triangulateK);
+          if (Math.random() < c.weave.triangulateChance) {
+            const n2 = kNearest(i, 2);
             if (n2.length >= 2) addEdge(n2[0].j, n2[1].j, elapsed);
           }
         }
       }
 
       if (modeRef.current === "secondary") {
-        const at = T.secondary.at;
-        if (elapsed > at && elapsed < at + T.secondary.window) {
-          const src = litOrder[T.secondary.sourceIndex];
+        const at = 4600;
+        if (elapsed > at && elapsed < at + 60) {
+          const src = litOrder[3];
           pulseNode(src, elapsed);
           const targets = nodesRef.current
-            .filter((n) => n.id > T.secondary.targetMinIdExclusive && n.id < T.secondary.targetMaxIdExclusive)
+            .filter((n) => n.id > 36 && n.id < 78)
             .sort(() => Math.random() - 0.5)
-            .slice(0, T.secondary.targetCount)
+            .slice(0, 6)
             .map((n) => n.id);
 
           for (let i = 0; i < targets.length; i++) {
-            setTimeout(() => pulseNode(targets[i], elapsed + i * T.secondary.pulseDelayMs), i * T.secondary.pulseDelayMs);
+            setTimeout(
+              () => pulseNode(targets[i], elapsed + i * 90),
+              i * 90
+            );
           }
         }
       }
 
-      // edges
-      ctx.lineCap = T.edgeDraw.lineCap;
-      for (const e of edgesRef.current) {
+      // ── Pre-compute projected positions ──────────────────
+      const effectiveDriftAmpX = prefersReduced ? 0 : c.drift.amplitudeX;
+      const effectiveDriftAmpY = prefersReduced ? 0 : c.drift.amplitudeY;
+      const projX = projXRef.current;
+      const projY = projYRef.current;
+
+      for (let i = 0; i < nodesRef.current.length; i++) {
+        const n = nodesRef.current[i];
+        const dS = depthScale(n.z, c.depth.perspectiveDist);
+
+        const parallaxX =
+          -mouseOffsetX * (1 - n.z) * effectiveParallax * W;
+        const parallaxY =
+          -mouseOffsetY * (1 - n.z) * effectiveParallax * H;
+
+        const driftX =
+          Math.sin(elapsed * c.drift.speed + n.driftPhase) *
+          effectiveDriftAmpX *
+          dS;
+        const driftY =
+          Math.cos(elapsed * c.drift.speed * 0.7 + n.driftPhase) *
+          effectiveDriftAmpY *
+          dS;
+
+        projX[i] = n.x + parallaxX + driftX;
+        projY[i] = n.y + parallaxY + driftY;
+      }
+
+      // ── Draw edges (back-to-front) ───────────────────────
+      ctx.lineCap = "round";
+
+      // Sort edges by average z (lazy: only re-sort when edge count changes)
+      const edges = edgesRef.current;
+      // Simple back-to-front: draw them in order, depth modulates opacity
+      for (const e of edges) {
         const a = nodesRef.current[e.a];
         const b = nodesRef.current[e.b];
-        if (a.appear < T.nodes.appearMinForEdgeA || b.appear < T.nodes.appearMinForEdgeA) continue;
+        if (a.appear < 0.2 || b.appear < 0.2) continue;
 
-        const baseAlpha = T.edgeDraw.baseAlpha * stickyFade;
-        const bornT = clamp((elapsed - e.bornAt) / T.edgeDraw.bornFadeMs, 0, 1);
-        const hi = (1 - bornT) * T.edgeDraw.highlightMul;
+        const avgZ = (a.z + b.z) / 2;
+        const dS = depthScale(avgZ, c.depth.perspectiveDist);
+        const dO = depthOpacity(avgZ, 1, c.depth.opacityMin, c.depth.opacityMax);
 
-        ctx.strokeStyle = rgba(T.color.line, baseAlpha + hi);
-        ctx.lineWidth = T.edgeDraw.widthBase;
+        const edgeAlphaFactor = lerp(1, dO, 0.5);
+        const edgeWidthFactor = lerp(1, dS, 0.4);
+
+        const baseAlpha = c.edges.baseAlpha * stickyFade * edgeAlphaFactor;
+        const bornT = clamp(
+          (elapsed - e.bornAt) / c.edges.bornFadeMs,
+          0,
+          1
+        );
+        const hi = (1 - bornT) * c.edges.highlightMul;
+
+        ctx.strokeStyle = rgba(
+          c.colors.line,
+          baseAlpha + hi * edgeAlphaFactor
+        );
+        ctx.lineWidth = c.edges.widthBase * edgeWidthFactor;
         ctx.beginPath();
-        ctx.moveTo(a.x, a.y);
-        ctx.lineTo(b.x, b.y);
+        ctx.moveTo(projX[e.a], projY[e.a]);
+        ctx.lineTo(projX[e.b], projY[e.b]);
         ctx.stroke();
 
-        if (hi > T.edgeDraw.highlightMinToDrawMint) {
-          ctx.strokeStyle = rgba(T.color.mint, T.edgeDraw.mintHiAlphaMul * hi);
-          ctx.lineWidth = T.edgeDraw.widthMint;
+        if (hi > c.edges.highlightMinToDrawMint) {
+          ctx.strokeStyle = rgba(
+            c.colors.mint,
+            c.edges.mintHiAlphaMul * hi * edgeAlphaFactor
+          );
+          ctx.lineWidth = c.edges.widthMint * edgeWidthFactor;
           ctx.beginPath();
-          ctx.moveTo(a.x, a.y);
-          ctx.lineTo(b.x, b.y);
+          ctx.moveTo(projX[e.a], projY[e.a]);
+          ctx.lineTo(projX[e.b], projY[e.b]);
           ctx.stroke();
         }
       }
 
-      // nodes
-      for (const n of nodesRef.current) {
-        if (n.appear < T.nodes.appearMinForDraw) continue;
-        const isSeed = n.id === 0;
-        const r = isSeed ? T.nodes.seedR : n.r;
+      // ── Draw nodes (back-to-front via sortOrder) ─────────
+      for (const idx of sortOrderRef.current) {
+        const n = nodesRef.current[idx];
+        if (n.appear < 0.1) continue;
 
-        if (isSeed || n.lit > T.nodeDraw.litGlowThreshold) {
-          const g = isSeed ? T.nodeDraw.glowSeedAlpha : T.nodeDraw.glowLitAlphaMul * n.lit;
-          ctx.fillStyle = rgba(T.color.mintSoft, g * stickyFade);
+        const isSeed = n.id === 0;
+        const baseR = isSeed ? c.nodes.seedR : n.r;
+        const dS = depthScale(n.z, c.depth.perspectiveDist);
+        const dO = depthOpacity(
+          n.z,
+          1,
+          c.depth.opacityMin,
+          c.depth.opacityMax
+        );
+        const r = baseR * dS;
+
+        const px = projX[idx];
+        const py = projY[idx];
+
+        // Glow
+        if (isSeed || n.lit > 0.14) {
+          const glowFactor = lerp(1, dO, c.glow.depthFalloff);
+          const g = isSeed
+            ? c.glow.seedAlpha
+            : c.glow.litAlphaMul * n.lit;
+          ctx.fillStyle = rgba(
+            c.colors.mintSoft,
+            g * stickyFade * glowFactor
+          );
           ctx.beginPath();
-          ctx.arc(n.x, n.y, r * T.nodeDraw.glowRadiusMul, 0, Math.PI * 2);
+          ctx.arc(px, py, r * c.glow.radiusMul, 0, Math.PI * 2);
           ctx.fill();
         }
 
+        // Node fill
         ctx.fillStyle = isSeed
-          ? rgba(T.color.mint, 1)
-          : rgba(T.color.ink, (T.nodeDraw.inkBase + T.nodeDraw.inkAppearBoost * n.appear) * T.nodeDraw.inkMul * stickyFade);
+          ? rgba(c.colors.mint, dO)
+          : rgba(
+              c.colors.ink,
+              (0.55 + 0.25 * n.appear) * 0.8 * stickyFade * dO
+            );
 
         ctx.beginPath();
-        ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+        ctx.arc(px, py, r, 0, Math.PI * 2);
         ctx.fill();
 
+        // Pulse ring
         const dt = elapsed - n.pulseAt;
-        if (dt >= 0 && dt < T.nodeDraw.pulseDurationMs) {
-          const t = dt / T.nodeDraw.pulseDurationMs;
-          const rr = lerp(r * T.nodeDraw.pulseFromMul, r * T.nodeDraw.pulseToMul, easeOutCubic(t));
-          ctx.strokeStyle = rgba(T.color.mint, (1 - t) * T.nodeDraw.pulseAlpha * stickyFade);
-          ctx.lineWidth = T.nodeDraw.pulseWidth;
+        if (dt >= 0 && dt < c.pulse.durationMs) {
+          const t = dt / c.pulse.durationMs;
+          const rr = lerp(
+            r * c.pulse.fromMul,
+            r * c.pulse.toMul * dS,
+            easeOutCubic(t)
+          );
+          ctx.strokeStyle = rgba(
+            c.colors.mint,
+            (1 - t) * c.pulse.alpha * stickyFade * dO
+          );
+          ctx.lineWidth = c.pulse.width * dS;
           ctx.beginPath();
-          ctx.arc(n.x, n.y, rr, 0, Math.PI * 2);
+          ctx.arc(px, py, rr, 0, Math.PI * 2);
           ctx.stroke();
         }
       }
@@ -335,8 +562,18 @@ export default function HeroNetworkCanvas({ stickyProgress = 0 }: { stickyProgre
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       ro.disconnect();
+      canvas.removeEventListener("mousemove", onMouseMove);
+      canvas.removeEventListener("mouseleave", onMouseLeave);
     };
-  }, [dpr, seed.x, seed.y, stickyProgress]);
+    // Re-init when config changes (admin preview)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dpr, seed.x, seed.y, stickyProgress, animationConfig]);
 
-  return <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" aria-hidden="true" />;
+  return (
+    <canvas
+      ref={canvasRef}
+      className="absolute inset-0 h-full w-full pointer-events-auto"
+      aria-hidden="true"
+    />
+  );
 }
